@@ -1,0 +1,115 @@
+{
+  "info": {
+    "name": "Personal Retail Inventory API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "Get all products",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/products"
+      }
+    },
+    {
+      "name": "Create product",
+      "request": {
+        "method": "POST",
+        "header": [{
+          "key": "Content-Type",
+          "value": "application/json"
+        }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"MOU-4004\",\n  \"name\": \"Mouse\",\n  \"quantity\": 20,\n  \"price\": 29.99,\n  \"lowStockThreshold\": 10,\n  \"expiryDate\": \"2026-09-30\"\n}"
+        },
+        "url": "{{baseUrl}}/api/products"
+      }
+    },
+    {
+      "name": "Filter, search, paginate, and sort products",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/products?category=Electronics&search=phone&page=1&limit=10&sortBy=price&order=desc"
+      }
+    },
+    {
+      "name": "Search products by SKU",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/products?search=LAP-1001"
+      }
+    },
+    {
+      "name": "Get product by id",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/products/1"
+      }
+    },
+    {
+      "name": "Update product",
+      "request": {
+        "method": "PUT",
+        "header": [{
+          "key": "Content-Type",
+          "value": "application/json"
+        }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantity\": 12,\n  \"price\": 62.5\n}"
+        },
+        "url": "{{baseUrl}}/api/products/2"
+      }
+    },
+    {
+      "name": "Get low stock products",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/products/low-stock"
+      }
+    },
+    {
+      "name": "Get expiring soon products",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/products/expiring-soon"
+      }
+    },
+    {
+      "name": "Invalid product payload",
+      "request": {
+        "method": "POST",
+        "header": [{
+          "key": "Content-Type",
+          "value": "application/json"
+        }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"\",\n  \"name\": \"\",\n  \"quantity\": \"bad\",\n  \"price\": 10\n}"
+        },
+        "url": "{{baseUrl}}/api/products"
+      }
+    },
+    {
+      "name": "Delete product",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/products/4"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    }
+  ]
+}

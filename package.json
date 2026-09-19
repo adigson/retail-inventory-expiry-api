@@ -1,0 +1,18 @@
+{
+  "name": "personal-retail-inventory-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal retail inventory API",
+  "scripts": {
+    "test": "node --test",
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

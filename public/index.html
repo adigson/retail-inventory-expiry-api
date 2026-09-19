@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventory API Tester</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 20px;
+        background: #f4f7fb;
+        color: #1f2937;
+      }
+      .card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+      }
+      h1 { margin-top: 0; }
+      label { display: block; margin: 12px 0 6px; font-weight: bold; }
+      input, textarea, select, button {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+        margin-bottom: 8px;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+      }
+      button {
+        background: #2563eb;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      button:hover { background: #1d4ed8; }
+      pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 16px;
+        border-radius: 8px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Inventory API Tester</h1>
+
+      <div class="row">
+        <div>
+          <label for="baseUrl">Base URL</label>
+          <input id="baseUrl" value="http://localhost:3000" />
+        </div>
+        <div>
+          <label for="method">Method</label>
+          <select id="method">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="endpoint">Endpoint</label>
+      <input id="endpoint" value="/api/products" />
+
+      <label for="payload">JSON Body</label>
+      <textarea id="payload" rows="8">{
+  "sku": "MOU-4004",
+  "name": "Mouse",
+  "quantity": 20,
+  "price": 29.99,
+  "lowStockThreshold": 10,
+  "expiryDate": "2026-09-30"
+}</textarea>
+
+      <button id="sendRequest">Send Request</button>
+
+      <h3>Response</h3>
+      <pre id="responseOutput">Waiting for request...</pre>
+    </div>
+
+    <script>
+      const baseUrlInput = document.getElementById('baseUrl');
+      const methodInput = document.getElementById('method');
+      const endpointInput = document.getElementById('endpoint');
+      const payloadInput = document.getElementById('payload');
+      const responseOutput = document.getElementById('responseOutput');
+      const sendButton = document.getElementById('sendRequest');
+
+      sendButton.addEventListener('click', async () => {
+        const baseUrl = baseUrlInput.value.trim();
+        const method = methodInput.value;
+        const endpoint = endpointInput.value.trim();
+        const payload = payloadInput.value.trim();
+
+        let options = {
+          method,
+          headers: { 'Content-Type': 'application/json' }
+        };
+
+        if (method !== 'GET' && method !== 'DELETE' && payload) {
+          options.body = payload;
+        }
+
+        try {
+          const response = await fetch(`${baseUrl}${endpoint}`, options);
+          const text = await response.text();
+          let parsed;
+
+          try {
+            parsed = JSON.parse(text);
+          } catch {
+            parsed = text;
+          }
+
+          responseOutput.textContent = JSON.stringify({
+            status: response.status,
+            statusText: response.statusText,
+            data: parsed
+          }, null, 2);
+        } catch (error) {
+          responseOutput.textContent = JSON.stringify({
+            error: error.message
+          }, null, 2);
+        }
+      });
+    </script>
+  </body>
+</html>
