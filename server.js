@@ -23,7 +23,59 @@ function sendError(res, status, message) {
 }
 
 function normalizeSku(sku) {
-  return sku.trim().toLowerCase();
+  return String(sku).trim().toLowerCase();
+}
+
+function normalizeQueryValue(value) {
+  if (Array.isArray(value)) return normalizeQueryValue(value[0]);
+  if (typeof value !== 'string') return undefined;
+
+  const normalized = value.trim();
+  return normalized || undefined;
+}
+
+function isValidDateOnly(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function validateProductPayload(payload, { partial = false } = {}) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new AppError(400, 'Request body must be an object');
+  }
+
+  const requiredFields = ['sku', 'name', 'quantity', 'price'];
+  if (!partial && (requiredFields.some((field) => payload[field] === undefined)
+    || payload.sku === ''
+    || payload.name === ''
+    || typeof payload.quantity !== 'number'
+    || typeof payload.price !== 'number')) {
+    throw new AppError(400, 'SKU, name, quantity, and price are required');
+  }
+
+  if (payload.sku !== undefined && (typeof payload.sku !== 'string' || !payload.sku.trim())) {
+    throw new AppError(400, 'SKU must be a non-empty string');
+  }
+  if (payload.name !== undefined && (typeof payload.name !== 'string' || !payload.name.trim())) {
+    throw new AppError(400, 'Name must be a non-empty string');
+  }
+  if (payload.category !== undefined && (typeof payload.category !== 'string' || !payload.category.trim())) {
+    throw new AppError(400, 'Category must be a non-empty string');
+  }
+  if (payload.quantity !== undefined && (!Number.isInteger(payload.quantity) || payload.quantity < 0)) {
+    throw new AppError(400, 'Quantity must be a non-negative integer');
+  }
+  if (payload.price !== undefined && (!Number.isFinite(payload.price) || payload.price < 0)) {
+    throw new AppError(400, 'Price must be a non-negative number');
+  }
+  if (payload.lowStockThreshold !== undefined && (!Number.isInteger(payload.lowStockThreshold) || payload.lowStockThreshold < 0)) {
+    throw new AppError(400, 'Low-stock threshold must be a non-negative integer');
+  }
+  if (payload.expiryDate !== undefined && !isValidDateOnly(payload.expiryDate)) {
+    throw new AppError(400, 'Expiry date must be a valid YYYY-MM-DD date');
+  }
 }
 
 app.use((req, res, next) => {
@@ -59,30 +111,36 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/products', (req, res) => {
-  const { category, search, q, page = '1', limit = '10', sortBy, order = 'asc' } = req.query;
-  const requestedPage = Number(page);
-  const requestedLimit = Number(limit);
+  const categoryFilter = normalizeQueryValue(req.query.category);
+  const searchFilter = normalizeQueryValue(req.query.search ?? req.query.q);
+  const pageValue = normalizeQueryValue(req.query.page) ?? '1';
+  const limitValue = normalizeQueryValue(req.query.limit) ?? '10';
+  const sortByValue = normalizeQueryValue(req.query.sortBy)?.toLowerCase();
+  const orderValue = (normalizeQueryValue(req.query.order) ?? 'asc').toLowerCase();
+
+  const requestedPage = Number(pageValue);
+  const requestedLimit = Number(limitValue);
 
   if (!Number.isInteger(requestedPage) || requestedPage < 1 || !Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 100) {
     throw new AppError(400, 'page must be a positive integer and limit must be between 1 and 100');
   }
-  if (sortBy && !['price', 'quantity'].includes(sortBy)) {
+  if (sortByValue && !['price', 'quantity'].includes(sortByValue)) {
     throw new AppError(400, 'sortBy must be price or quantity');
   }
-  if (!['asc', 'desc'].includes(order)) {
+  if (!['asc', 'desc'].includes(orderValue)) {
     throw new AppError(400, 'order must be asc or desc');
   }
 
   let filteredProducts = products.filter((product) => {
-    const matchesCategory = !category || product.category?.toLowerCase() === category.toLowerCase();
-    const searchTerm = (search ?? q)?.toLowerCase();
-    const matchesSearch = !searchTerm || product.name.toLowerCase().includes(searchTerm) || product.sku.toLowerCase().includes(searchTerm);
+    const matchesCategory = !categoryFilter || String(product.category ?? '').toLowerCase() === categoryFilter.toLowerCase();
+    const searchTerm = searchFilter?.toLowerCase();
+    const matchesSearch = !searchTerm || String(product.name ?? '').toLowerCase().includes(searchTerm) || String(product.sku ?? '').toLowerCase().includes(searchTerm);
     return matchesCategory && matchesSearch;
   });
 
-  if (sortBy) {
-    const direction = order === 'desc' ? -1 : 1;
-    filteredProducts.sort((first, second) => (first[sortBy] - second[sortBy]) * direction);
+  if (sortByValue) {
+    const direction = orderValue === 'desc' ? -1 : 1;
+    filteredProducts.sort((first, second) => (first[sortByValue] - second[sortByValue]) * direction);
   }
 
   const total = filteredProducts.length;
@@ -126,11 +184,8 @@ app.get('/api/products/:id', (req, res) => {
 });
 
 app.post('/api/products', (req, res) => {
+  validateProductPayload(req.body);
   const { sku, name, category, quantity, price, lowStockThreshold, expiryDate } = req.body;
-
-  if (!sku || typeof sku !== 'string' || !name || typeof quantity !== 'number' || typeof price !== 'number') {
-    throw new AppError(400, 'SKU, name, quantity, and price are required');
-  }
 
   const duplicateSku = products.some((item) => normalizeSku(item.sku) === normalizeSku(sku));
   if (duplicateSku) {
@@ -139,9 +194,9 @@ app.post('/api/products', (req, res) => {
 
   const newProduct = {
     id: nextId++,
-    sku: sku.trim(),
-    name,
-    category: category ?? 'Uncategorized',
+    sku: String(sku).trim(),
+    name: String(name).trim(),
+    category: category ? String(category).trim() : 'Uncategorized',
     quantity,
     price,
     lowStockThreshold: lowStockThreshold ?? 5,
@@ -160,21 +215,19 @@ app.put('/api/products/:id', (req, res) => {
     throw new AppError(404, 'Product not found');
   }
 
+  validateProductPayload(req.body, { partial: true });
   const { sku, name, category, quantity, price, lowStockThreshold, expiryDate } = req.body;
 
   if (sku !== undefined) {
-    if (typeof sku !== 'string' || !sku.trim()) {
-      throw new AppError(400, 'SKU must be a non-empty string');
-    }
     const duplicateSku = products.some((item) => item.id !== product.id && normalizeSku(item.sku) === normalizeSku(sku));
     if (duplicateSku) {
       throw new AppError(409, 'Product SKU already exists');
     }
-    product.sku = sku.trim();
+    product.sku = String(sku).trim();
   }
 
-  if (name !== undefined) product.name = name;
-  if (category !== undefined) product.category = category;
+  if (name !== undefined) product.name = String(name).trim();
+  if (category !== undefined) product.category = String(category).trim();
   if (quantity !== undefined) product.quantity = quantity;
   if (price !== undefined) product.price = price;
   if (lowStockThreshold !== undefined) product.lowStockThreshold = lowStockThreshold;

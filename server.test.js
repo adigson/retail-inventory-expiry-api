@@ -90,15 +90,24 @@ test('GET /api/products/low-stock returns products at or below threshold', async
   assert.equal(response.status, 200);
   assert.ok(Array.isArray(body.data));
   assert.ok(body.data.some((item) => item.quantity <= (item.lowStockThreshold ?? 5)));
+  assert.ok(body.data.some((item) => item.sku === 'HDP-3003'));
 });
 
 test('GET /api/products/expiring-soon returns products expiring within 30 days', async () => {
+  const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const createResponse = await fetch(`${baseUrl}/api/products`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sku: 'EXP-6006', name: 'Expiring Product', quantity: 4, price: 15, expiryDate })
+  });
+  assert.equal(createResponse.status, 201);
+
   const response = await fetch(`${baseUrl}/api/products/expiring-soon`);
   const body = await response.json();
 
   assert.equal(response.status, 200);
   assert.ok(Array.isArray(body.data));
-  assert.ok(body.data.some((item) => item.expiryDate));
+  assert.ok(body.data.some((item) => item.sku === 'EXP-6006' && item.expiryDate === expiryDate));
 });
 
 test('POST /api/products rejects invalid payloads', async () => {
@@ -113,11 +122,77 @@ test('POST /api/products rejects invalid payloads', async () => {
   assert.equal(body.error.message, 'SKU, name, quantity, and price are required');
 });
 
+test('POST /api/products rejects a missing name', async () => {
+  const response = await fetch(`${baseUrl}/api/products`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sku: 'NON-8008', quantity: 1, price: 10 })
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error.message, 'SKU, name, quantity, and price are required');
+});
+
+test('POST /api/products rejects a negative price', async () => {
+  const response = await fetch(`${baseUrl}/api/products`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sku: 'NEG-9009', name: 'Negative Price', quantity: 1, price: -10 })
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error.message, 'Price must be a non-negative number');
+});
+
+test('POST /api/products rejects invalid field values', async () => {
+  const response = await fetch(`${baseUrl}/api/products`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sku: '   ',
+      name: 'Invalid Product',
+      quantity: -1,
+      price: 10,
+      expiryDate: '2026-02-30'
+    })
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error.message, 'SKU must be a non-empty string');
+});
+
+test('PUT /api/products/:id rejects invalid field values', async () => {
+  const response = await fetch(`${baseUrl}/api/products/1`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quantity: -1, price: 0 })
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error.message, 'Quantity must be a non-negative integer');
+});
+
+test('POST /api/products rejects invalid expiry dates', async () => {
+  const response = await fetch(`${baseUrl}/api/products`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sku: 'BAD-7007', name: 'Invalid Date', quantity: 1, price: 10, expiryDate: '2026-02-30' })
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error.message, 'Expiry date must be a valid YYYY-MM-DD date');
+});
+
 test('POST /api/products rejects duplicate SKU values', async () => {
   const response = await fetch(`${baseUrl}/api/products`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sku: 'LAP-1001', name: 'Duplicate Laptop', quantity: 8, price: 899.99 })
+    body: JSON.stringify({ sku: ' lap-1001 ', name: 'Duplicate Laptop', quantity: 8, price: 899.99 })
   });
   const body = await response.json();
 
@@ -140,6 +215,11 @@ test('DELETE /api/products/:id removes a product', async () => {
   assert.equal(response.status, 200);
   const deletedBody = await response.json();
   assert.equal(deletedBody.data.message, 'Product deleted successfully');
+
+  const getResponse = await fetch(`${baseUrl}/api/products/${created.data.id}`);
+  const getBody = await getResponse.json();
+  assert.equal(getResponse.status, 404);
+  assert.equal(getBody.error.message, 'Product not found');
 });
 
 test('GET /api/products supports category filtering and name or SKU search', async () => {
@@ -196,6 +276,26 @@ test('GET /api/products returns an empty array when no products match', async ()
 
 test('GET /api/products/:id returns 404 for a missing product', async () => {
   const response = await fetch(`${baseUrl}/api/products/9999`);
+  const body = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.equal(body.error.message, 'Product not found');
+});
+
+test('PUT /api/products/:id returns 404 for a missing product', async () => {
+  const response = await fetch(`${baseUrl}/api/products/9998`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quantity: 1 })
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.equal(body.error.message, 'Product not found');
+});
+
+test('DELETE /api/products/:id returns 404 for a missing product', async () => {
+  const response = await fetch(`${baseUrl}/api/products/9997`, { method: 'DELETE' });
   const body = await response.json();
 
   assert.equal(response.status, 404);

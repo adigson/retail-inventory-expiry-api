@@ -1,0 +1,136 @@
+{
+  "info": {
+    "name": "Retail Inventory and Expiry Management API",
+    "description": "Requests for health checks, product CRUD, filtering, alerts, validation, duplicate SKUs, missing products, and deletion.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health check",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "Create product",
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "const body = pm.response.json();",
+            "pm.collectionVariables.set('createdProductId', body.data.id);"
+          ]
+        }
+      }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"MOU-{{$randomInt 4000 9999}}\",\n  \"name\": \"Mouse\",\n  \"category\": \"Accessories\",\n  \"quantity\": 20,\n  \"price\": 29.99,\n  \"lowStockThreshold\": 10,\n  \"expiryDate\": \"2026-09-30\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/products"
+      }
+    },
+    {
+      "name": "Get all products",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/products" }
+    },
+    {
+      "name": "Get created product",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/products/{{createdProductId}}" }
+    },
+    {
+      "name": "Update created product",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantity\": 12,\n  \"price\": 24.99\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/products/{{createdProductId}}"
+      }
+    },
+    {
+      "name": "Search products by name or SKU",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/products?search=phone" }
+    },
+    {
+      "name": "Filter products by category",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/products?category=Electronics" }
+    },
+    {
+      "name": "Paginate products",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/products?page=1&limit=2" }
+    },
+    {
+      "name": "Sort products by price descending",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/products?sortBy=price&order=desc" }
+    },
+    {
+      "name": "Get low-stock products",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/products/low-stock" }
+    },
+    {
+      "name": "Get products expiring within 30 days",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/products/expiring-soon" }
+    },
+    {
+      "name": "Invalid product input",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"\",\n  \"name\": \"\",\n  \"quantity\": -1,\n  \"price\": 10,\n  \"expiryDate\": \"2026-02-30\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/products"
+      }
+    },
+    {
+      "name": "Duplicate SKU",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \" lap-1001 \",\n  \"name\": \"Duplicate Laptop\",\n  \"quantity\": 8,\n  \"price\": 899.99\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/products"
+      }
+    },
+    {
+      "name": "Missing product by id",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/products/9999" }
+    },
+    {
+      "name": "Update missing product",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantity\": 1\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/products/9998"
+      }
+    },
+    {
+      "name": "Delete missing product",
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/api/products/9997" }
+    },
+    {
+      "name": "Delete created product",
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/api/products/{{createdProductId}}" }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "createdProductId", "value": "4" }
+  ]
+}

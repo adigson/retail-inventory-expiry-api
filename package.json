@@ -1,8 +1,8 @@
 {
-  "name": "personal-retail-inventory-api",
+  "name": "retail-inventory-expiry-api",
   "version": "1.0.0",
   "private": true,
-  "description": "Personal retail inventory API",
+  "description": "Retail inventory and expiry management API",
   "scripts": {
     "test": "node --test",
     "dev": "nodemon server.js",
